@@ -1,0 +1,20 @@
+[project]
+name = "multilingual-meeting-intelligence-api"
+version = "0.1.0"
+description = "API foundation for Multilingual Meeting Intelligence"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.0",
+  "pydantic-settings==2.7.1",
+  "psycopg[binary]==3.2.3",
+  "redis==5.2.1",
+  "SQLAlchemy==2.0.36",
+  "alembic==1.14.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

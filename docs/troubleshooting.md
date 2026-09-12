@@ -1,0 +1,22 @@
+# Troubleshooting
+
+- If Docker cannot pull `pgvector/pgvector:pg16`, verify Docker Desktop is running and retry `docker compose pull`.
+- If the API container exits, inspect `docker compose logs api` and verify the database and Redis health checks.
+- If the web container cannot install dependencies, remove `apps/web/node_modules` and rerun `docker compose build web`.
+- If host-side Alembic cannot resolve `postgres`, set `DATABASE_URL` to the `localhost` URL shown in `docs/database.md`; `postgres` is only resolvable inside Compose.
+- If uploads fail with `MEDIA_INSPECTION_FAILED`, install FFmpeg so `ffprobe` is available or set `FFPROBE_PATH` to its executable path.
+- If uploads fail with `MEDIA_TOO_LARGE`, raise `MAX_MEDIA_SIZE_BYTES` deliberately rather than bypassing validation.
+- If uploads fail with `INVALID_MIME_TYPE`, send the MIME type matching the media extension; the API does not trust extensions alone.
+- If transcription jobs remain queued, inspect `docker compose logs worker` and verify Redis is healthy.
+- If transcription fails with a model initialization error, verify `ASR_MODEL`, `ASR_DEVICE`, and `ASR_COMPUTE_TYPE`; use `ASR_DEVICE=cpu` for a CPU-only machine.
+- The first local faster-whisper transcription may download the configured model. Tests use a deterministic fake provider and do not download models.
+- If diarization fails because pyannote is unavailable, install `apps/api/requirements-diarization.txt` and restart the worker.
+- If pyannote reports an authentication or model-access error, verify `DIARIZATION_AUTH_TOKEN` and the model license acceptance without logging the token.
+- If transcript segments are unassigned, inspect temporal overlap; raw speaker segments can overlap and are preserved independently.
+- If event extraction fails with `EVENT_EXTRACTION_MODEL is not configured`, set `EVENT_EXTRACTION_MODEL` before retrying the job.
+- If a provider returns invalid or cross-meeting transcript IDs, the run is marked failed and no partial events are persisted.
+- If an event list is empty after a completed run, the meeting had no supported evidence-backed events; this is different from a failed run.
+- If intelligence generation returns `EVENT_EXTRACTION_REQUIRED`, complete event extraction before generating intelligence.
+- If intelligence generation fails with `MEETING_INTELLIGENCE_MODEL is not configured`, set `MEETING_INTELLIGENCE_MODEL` before retrying.
+- If intelligence output references an invalid event, the run fails and no derived intelligence record is persisted.
+- Phase 7 synthesizes Phase 6 events but does not resolve temporal conflicts or contradictions, translate, search, or build organizational knowledge.
