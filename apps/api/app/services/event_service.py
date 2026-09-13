@@ -198,15 +198,34 @@ def _persist_events(
         db.add(event)
         db.flush()
         for segment in valid_segments:
-            db.add(
-                EventEvidence(
-                    event_id=event.id,
-                    transcript_segment_id=segment.id,
-                    evidence_start=segment.start_time,
-                    evidence_end=segment.end_time,
-                    relevance=candidate.confidence,
-                )
+            evidence = EventEvidence(
+                event_id=event.id,
+                evidence_id=None,  # compatibility placeholder; canonical evidence row added below
+                transcript_segment_id=segment.id,
+                evidence_start=segment.start_time,
+                evidence_end=segment.end_time,
+                relevance=candidate.confidence,
             )
+            db.add(evidence)
+            db.flush()
+            from app.models.entities import Evidence, EvidenceType
+            canonical = Evidence(
+                meeting_id=meeting_id,
+                evidence_type=EvidenceType.TRANSCRIPT,
+                source_type="transcript_segment",
+                source_id=segment.id,
+                media_asset_id=segment.media_asset_id,
+                transcript_segment_id=segment.id,
+                speaker_id=segment.speaker_id,
+                start_time=segment.start_time,
+                end_time=segment.end_time,
+                content=segment.text,
+                confidence=candidate.confidence,
+                metadata_json={"event_id": event.id, "round_trip": True},
+            )
+            db.add(canonical)
+            db.flush()
+            evidence.evidence_id = canonical.id
         events.append(event)
     db.flush()
     return events

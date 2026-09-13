@@ -5,6 +5,7 @@ from app.api.media import router as media_router
 from app.api.transcription import router as transcription_router
 from app.api.speakers import router as speakers_router
 from app.api.events import router as events_router
+from app.api.evidence import router as evidence_router
 from app.api.intelligence import router as intelligence_router
 from app.settings import settings
 
@@ -24,6 +25,7 @@ app.include_router(media_router)
 app.include_router(transcription_router)
 app.include_router(speakers_router)
 app.include_router(events_router)
+app.include_router(evidence_router)
 app.include_router(intelligence_router)
 
 
