@@ -56,6 +56,7 @@ def _event_data(db: Session, event: Event) -> dict:
         evidence.append(
             EventEvidenceRead(
                 id=event_evidence.id,
+                evidence_id=event_evidence.evidence_id,
                 transcript_segment_id=segment.id,
                 start_time=event_evidence.evidence_start,
                 end_time=event_evidence.evidence_end,

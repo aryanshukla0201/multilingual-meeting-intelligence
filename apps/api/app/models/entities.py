@@ -391,11 +391,13 @@ class EventEvidence(BaseEntity):
     __tablename__ = "event_evidence"
     __table_args__ = (
         Index("ix_event_evidence_event", "event_id"),
+        Index("ix_event_evidence_evidence", "evidence_id"),
         Index("ix_event_evidence_transcript_segment", "transcript_segment_id"),
     )
 
     event_id: Mapped[str] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), index=True)
-    transcript_segment_id: Mapped[str] = mapped_column(
+    evidence_id: Mapped[str | None] = mapped_column(ForeignKey("evidence.id", ondelete="CASCADE"), index=True)
+    transcript_segment_id: Mapped[str | None] = mapped_column(
         ForeignKey("transcript_segments.id", ondelete="CASCADE"), index=True
     )
     evidence_start: Mapped[float] = mapped_column(Float)
@@ -518,14 +520,28 @@ class Contradiction(BaseEntity):
 
 class Evidence(BaseEntity):
     __tablename__ = "evidence"
+    __table_args__ = (
+        Index("ix_evidence_meeting_time", "meeting_id", "start_time"),
+        Index("ix_evidence_type", "evidence_type"),
+        Index("ix_evidence_segment", "transcript_segment_id"),
+        Index("ix_evidence_media", "media_asset_id"),
+        CheckConstraint(
+            "start_time IS NULL OR end_time IS NULL OR start_time <= end_time",
+            name="ck_evidence_time_order",
+        ),
+    )
 
     meeting_id: Mapped[str] = mapped_column(ForeignKey("meetings.id", ondelete="CASCADE"), index=True)
-    source_type: Mapped[EvidenceType] = mapped_column(String(32), index=True)
-    source_id: Mapped[str] = mapped_column(String(36), index=True)
+    evidence_type: Mapped[EvidenceType] = mapped_column(String(32), index=True)
+    source_type: Mapped[str | None] = mapped_column(String(64), index=True)
+    source_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    media_asset_id: Mapped[str | None] = mapped_column(ForeignKey("media_assets.id"), index=True)
+    transcript_segment_id: Mapped[str | None] = mapped_column(ForeignKey("transcript_segments.id"), index=True)
+    speaker_id: Mapped[str | None] = mapped_column(ForeignKey("speakers.id"), index=True)
     start_time: Mapped[float | None] = mapped_column(Float)
     end_time: Mapped[float | None] = mapped_column(Float)
-    speaker_id: Mapped[str | None] = mapped_column(ForeignKey("speakers.id"), index=True)
-    excerpt: Mapped[str | None] = mapped_column(Text)
+    content: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float | None] = mapped_column(Float)
     metadata_json: Mapped[dict | None] = mapped_column(JSON)
 
 

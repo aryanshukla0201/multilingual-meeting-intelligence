@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models.entities import (
     ActionStatus,
     DecisionStatus,
+    EvidenceType,
     EventType,
     MeetingStatus,
     SourceType,
@@ -116,9 +117,29 @@ class DiarizationStatusRead(BaseModel):
     error: str | None = None
 
 
+class EvidenceRead(SchemaBase):
+    id: str
+    meeting_id: str
+    evidence_type: EvidenceType
+    source_type: str | None = None
+    source_id: str | None = None
+    media_asset_id: str | None = None
+    transcript_segment_id: str | None = None
+    speaker_id: str | None = None
+    speaker_label: str | None = None
+    start_time: float | None = Field(default=None, ge=0)
+    end_time: float | None = Field(default=None, ge=0)
+    content: str | None = None
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    metadata_json: dict | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class EventEvidenceRead(BaseModel):
     id: str
-    transcript_segment_id: str
+    evidence_id: str
+    transcript_segment_id: str | None
     start_time: float = Field(ge=0)
     end_time: float = Field(ge=0)
     text: str
