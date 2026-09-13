@@ -6,6 +6,8 @@ from app.models.entities import (
     ActionStatus,
     DecisionStatus,
     EvidenceType,
+    EventRelationshipType,
+    EventTemporalState,
     EventType,
     MeetingStatus,
     SourceType,
@@ -147,11 +149,24 @@ class EventEvidenceRead(BaseModel):
     speaker_label: str | None
 
 
+class EventRelationshipRead(BaseModel):
+    id: str
+    meeting_id: str
+    source_event_id: str
+    target_event_id: str
+    relationship_type: EventRelationshipType
+    confidence: float = Field(ge=0, le=1)
+    rationale: str | None = None
+    metadata_json: dict | None = None
+    created_at: datetime
+
+
 class MeetingEventRead(BaseModel):
     id: str
     meeting_id: str
     extraction_run_id: str | None
     event_type: EventType
+    temporal_state: EventTemporalState = EventTemporalState.ACTIVE
     title: str | None
     subject: str | None
     value: str | None

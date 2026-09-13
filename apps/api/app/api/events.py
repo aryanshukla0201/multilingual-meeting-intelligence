@@ -18,6 +18,7 @@ from app.schemas.contracts import (
     EventEvidenceRead,
     EventExtractionJobResponse,
     EventExtractionStatusRead,
+    EventRelationshipRead,
     MeetingEventRead,
 )
 from app.services.event_extraction import EventExtractionError, create_event_extraction_provider
@@ -28,6 +29,11 @@ from app.services.event_service import (
     get_event_evidence,
     get_extraction_status,
     list_events,
+)
+from app.services.temporal_service import (
+    get_event_relationships,
+    get_incoming_event_relationships,
+    get_outgoing_event_relationships,
 )
 from app.services.jobs import JobQueueError, enqueue_event_extraction_job
 
@@ -70,6 +76,7 @@ def _event_data(db: Session, event: Event) -> dict:
         meeting_id=event.meeting_id,
         extraction_run_id=event.extraction_run_id,
         event_type=event.event_type,
+        temporal_state=getattr(event, "temporal_state", None) or "ACTIVE",
         title=event.title,
         subject=event.subject,
         value=event.value,
@@ -147,6 +154,75 @@ def read_event(meeting_id: str, event_id: str, db: Session = Depends(get_db)) ->
     if event is None:
         return _error("EVENT_NOT_FOUND", "Event not found", 404)
     return _success(_event_data(db, event))
+
+
+@router.get("/meetings/{meeting_id}/events/{event_id}/relationships", summary="Get temporal relationships for an event")
+def read_event_relationships(meeting_id: str, event_id: str, db: Session = Depends(get_db)) -> JSONResponse:
+    event = get_event(db, meeting_id, event_id)
+    if event is None:
+        return _error("EVENT_NOT_FOUND", "Event not found", 404)
+    rows = get_event_relationships(db, meeting_id, event_id)
+    payload = [
+        EventRelationshipRead(
+            id=row.id,
+            meeting_id=row.meeting_id,
+            source_event_id=row.source_event_id,
+            target_event_id=row.target_event_id,
+            relationship_type=row.relationship_type,
+            confidence=row.confidence,
+            rationale=row.rationale,
+            metadata_json=row.metadata_json,
+            created_at=row.created_at,
+        ).model_dump(mode="json")
+        for row in rows
+    ]
+    return _success(payload)
+
+
+@router.get("/meetings/{meeting_id}/events/{event_id}/relationships/incoming", summary="Get incoming temporal relationships")
+def read_incoming_event_relationships(meeting_id: str, event_id: str, db: Session = Depends(get_db)) -> JSONResponse:
+    event = get_event(db, meeting_id, event_id)
+    if event is None:
+        return _error("EVENT_NOT_FOUND", "Event not found", 404)
+    rows = get_incoming_event_relationships(db, meeting_id, event_id)
+    payload = [
+        EventRelationshipRead(
+            id=row.id,
+            meeting_id=row.meeting_id,
+            source_event_id=row.source_event_id,
+            target_event_id=row.target_event_id,
+            relationship_type=row.relationship_type,
+            confidence=row.confidence,
+            rationale=row.rationale,
+            metadata_json=row.metadata_json,
+            created_at=row.created_at,
+        ).model_dump(mode="json")
+        for row in rows
+    ]
+    return _success(payload)
+
+
+@router.get("/meetings/{meeting_id}/events/{event_id}/relationships/outgoing", summary="Get outgoing temporal relationships")
+def read_outgoing_event_relationships(meeting_id: str, event_id: str, db: Session = Depends(get_db)) -> JSONResponse:
+    event = get_event(db, meeting_id, event_id)
+    if event is None:
+        return _error("EVENT_NOT_FOUND", "Event not found", 404)
+    rows = get_outgoing_event_relationships(db, meeting_id, event_id)
+    payload = [
+        EventRelationshipRead(
+            id=row.id,
+            meeting_id=row.meeting_id,
+            source_event_id=row.source_event_id,
+            target_event_id=row.target_event_id,
+            relationship_type=row.relationship_type,
+            confidence=row.confidence,
+            rationale=row.rationale,
+            metadata_json=row.metadata_json,
+            created_at=row.created_at,
+        ).model_dump(mode="json")
+        for row in rows
+    ]
+    return _success(payload)
 
 
 @router.get("/meetings/{meeting_id}/events/extraction/status", summary="Get event extraction status")

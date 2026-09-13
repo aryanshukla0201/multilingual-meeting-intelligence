@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, JSON, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
 from pgvector.sqlalchemy import Vector
@@ -94,6 +94,22 @@ class EventType(StrEnum):
     OBJECTION = "OBJECTION"
     ASSUMPTION = "ASSUMPTION"
     CONSTRAINT = "CONSTRAINT"
+
+
+class EventTemporalState(StrEnum):
+    ACTIVE = "ACTIVE"
+    SUPERSEDED = "SUPERSEDED"
+    CANCELLED = "CANCELLED"
+    COMPLETED = "COMPLETED"
+    REOPENED = "REOPENED"
+
+
+class EventRelationshipType(StrEnum):
+    SUPERSEDES = "SUPERSEDES"
+    CANCELS = "CANCELS"
+    COMPLETES = "COMPLETES"
+    REOPENS = "REOPENS"
+    RELATES_TO = "RELATES_TO"
 
 
 class EvidenceType(StrEnum):
@@ -365,6 +381,10 @@ class Event(BaseEntity):
             "event_type IN ('FACT', 'CLAIM', 'OPINION', 'DECISION', 'COMMITMENT', 'ACTION', 'DEADLINE', 'RISK', 'BLOCKER', 'QUESTION', 'DISAGREEMENT', 'PROPOSAL', 'OBJECTION', 'ASSUMPTION', 'CONSTRAINT')",
             name="ck_events_event_type",
         ),
+        CheckConstraint(
+            "temporal_state IN ('ACTIVE', 'SUPERSEDED', 'CANCELLED', 'COMPLETED', 'REOPENED')",
+            name="ck_events_temporal_state",
+        ),
     )
 
     meeting_id: Mapped[str] = mapped_column(ForeignKey("meetings.id", ondelete="CASCADE"), index=True)
@@ -372,10 +392,16 @@ class Event(BaseEntity):
     extraction_run_id: Mapped[str | None] = mapped_column(ForeignKey("event_extraction_runs.id"), index=True)
     topic_id: Mapped[str | None] = mapped_column(ForeignKey("topics.id"), index=True)
     event_type: Mapped[EventType] = mapped_column(String(32), index=True)
+    temporal_state: Mapped[EventTemporalState] = mapped_column(
+        String(32), default=EventTemporalState.ACTIVE, index=True
+    )
     title: Mapped[str | None] = mapped_column(String(300))
     value: Mapped[str | None] = mapped_column(Text)
     start_time: Mapped[float] = mapped_column(Float)
     end_time: Mapped[float] = mapped_column(Float)
+    effective_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    occurred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     language: Mapped[str | None] = mapped_column(String(32))
     original_text: Mapped[str] = mapped_column(Text)
     translated_text: Mapped[str | None] = mapped_column(Text)
@@ -384,6 +410,7 @@ class Event(BaseEntity):
     object_value: Mapped[str | None] = mapped_column(String(1000))
     confidence_score: Mapped[float | None] = mapped_column(Float)
     confidence_label: Mapped[str | None] = mapped_column(String(16))
+    temporal_metadata_json: Mapped[dict | None] = mapped_column(JSON)
     schema_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
 
@@ -403,6 +430,26 @@ class EventEvidence(BaseEntity):
     evidence_start: Mapped[float] = mapped_column(Float)
     evidence_end: Mapped[float] = mapped_column(Float)
     relevance: Mapped[float | None] = mapped_column(Float)
+
+
+class EventRelationship(BaseEntity):
+    __tablename__ = "event_relationships"
+    __table_args__ = (
+        Index("ix_event_relationships_meeting", "meeting_id"),
+        Index("ix_event_relationships_source", "source_event_id"),
+        Index("ix_event_relationships_target", "target_event_id"),
+        Index("ix_event_relationships_type", "relationship_type"),
+        UniqueConstraint("source_event_id", "target_event_id", "relationship_type", name="uq_event_relationships_unique"),
+        CheckConstraint("source_event_id != target_event_id", name="ck_event_relationships_no_self_ref"),
+    )
+
+    meeting_id: Mapped[str] = mapped_column(ForeignKey("meetings.id", ondelete="CASCADE"), index=True)
+    source_event_id: Mapped[str] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), index=True)
+    target_event_id: Mapped[str] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"), index=True)
+    relationship_type: Mapped[EventRelationshipType] = mapped_column(String(32), index=True)
+    confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    rationale: Mapped[str | None] = mapped_column(Text)
+    metadata_json: Mapped[dict | None] = mapped_column(JSON)
 
 
 class MeetingIntelligenceRun(BaseEntity):
